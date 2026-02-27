@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ילקוט זמר עברי - שירון</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=Rubik:wght@300;400;500;700&family=Secular+One&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #faf7f2;
+    --bg-secondary: #f0ebe3;
+    --bg-card: #ffffff;
+    --text-primary: #2c1810;
+    --text-secondary: #5a4a3a;
+    --text-muted: #8a7a6a;
+    --accent: #8b5e3c;
+    --accent-light: #c49a6c;
+    --border: #d4c5b3;
+    --border-light: #e8ddd0;
+    --shadow: rgba(44, 24, 16, 0.08);
+    --gold: #c8a45c;
+    --gold-light: #f0e0b8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Rubik', 'Heebo', Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.7;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #3d2b1f 0%, #5a3d2b 50%, #3d2b1f 100%);
+    color: #f0e0c8;
+    padding: 1.8rem 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    position: relative;
+  }
+
+  .header-ornament { font-size: 1.2rem; color: var(--gold); letter-spacing: 0.5em; margin-bottom: 0.4rem; }
+
+  .header h1 {
+    font-family: 'Secular One', 'Heebo', sans-serif;
+    font-size: 2.2rem; font-weight: 700;
+    color: var(--gold-light);
+    margin-bottom: 0.2rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  .header .subtitle { font-size: 1rem; color: #c8b89c; font-weight: 300; }
+
+  .edit-mode-toggle {
+    position: absolute;
+    left: 1rem; top: 50%; transform: translateY(-50%);
+    background: none; border: 1px solid rgba(200,164,92,0.4);
+    color: var(--gold); border-radius: 6px;
+    padding: 0.3rem 0.7rem; font-size: 0.8rem;
+    font-family: 'Rubik', sans-serif;
+    cursor: pointer; transition: all 0.3s;
+  }
+
+  .edit-mode-toggle:hover { background: rgba(200,164,92,0.2); }
+  .edit-mode-toggle.active { background: var(--gold); color: #3d2b1f; }
+
+  .search-section {
+    background: var(--bg-secondary);
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 99;
+  }
+
+  .search-container { max-width: 800px; margin: 0 auto; }
+  .search-box { position: relative; margin-bottom: 0.8rem; }
+
+  .search-box input {
+    width: 100%; padding: 0.9rem 1.2rem; padding-right: 3rem;
+    font-family: 'Rubik', 'Heebo', sans-serif; font-size: 1.1rem;
+    border: 2px solid var(--border); border-radius: 12px;
+    background: var(--bg-card); color: var(--text-primary);
+    outline: none; transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139, 94, 60, 0.15); }
+  .search-box input::placeholder { color: var(--text-muted); }
+
+  .search-icon {
+    position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 1.2rem; pointer-events: none;
+  }
+
+  .filter-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  .filter-tab {
+    padding: 0.4rem 1rem; font-family: 'Rubik', 'Heebo', sans-serif; font-size: 0.9rem;
+    border: 1.5px solid var(--border); border-radius: 20px;
+    background: var(--bg-card); color: var(--text-secondary);
+    cursor: pointer; transition: all 0.3s;
+  }
+
+  .filter-tab:hover { border-color: var(--accent-light); color: var(--accent); }
+  .filter-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .results-count { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+  .main-content { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+
+  .loading-state { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+  .loading-state .spinner { font-size: 2rem; margin-bottom: 1rem; animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .song-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .song-item {
+    background: var(--bg-card); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 1rem 1.3rem;
+    cursor: pointer; transition: all 0.3s ease;
+    display: flex; align-items: center; gap: 1rem;
+  }
+
+  .song-item:hover { border-color: var(--accent-light); box-shadow: 0 4px 15px var(--shadow); transform: translateY(-1px); }
+
+  .song-item .song-number {
+    min-width: 2.2rem; height: 2.2rem;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-secondary); border-radius: 50%;
+    font-size: 0.8rem; color: var(--text-muted); font-weight: 500;
+  }
+
+  .song-item .song-info { flex: 1; }
+  .song-item .song-title { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem; }
+  .song-item .song-meta { font-size: 0.85rem; color: var(--text-muted); }
+  .song-item .song-arrow { color: var(--border); font-size: 1.2rem; transition: color 0.3s; }
+  .song-item:hover .song-arrow { color: var(--accent); }
+
+  .song-detail { display: none; animation: fadeIn 0.4s ease; }
+  .song-detail.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-family: 'Rubik', 'Heebo', sans-serif; font-size: 1rem;
+    color: var(--accent); background: none;
+    border: 1.5px solid var(--accent-light); border-radius: 8px;
+    cursor: pointer; transition: all 0.3s; margin-bottom: 1.5rem;
+  }
+
+  .back-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .song-card {
+    background: var(--bg-card); border: 1px solid var(--border-light);
+    border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px var(--shadow);
+  }
+
+  .song-card-header {
+    background: linear-gradient(135deg, #3d2b1f, #5a3d2b);
+    padding: 1.8rem 2rem; text-align: center;
+  }
+
+  .song-card-header .ornament { color: var(--gold); font-size: 1rem; letter-spacing: 0.3em; margin-bottom: 0.5rem; }
+
+  .song-card-header h2 {
+    font-family: 'Secular One', sans-serif;
+    font-size: 1.8rem; color: var(--gold-light);
+    margin-bottom: 0.7rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  .song-card-header .meta-line { font-size: 0.95rem; color: #c8b89c; margin: 0.2rem 0; }
+  .song-card-header .meta-label { color: var(--gold); }
+
+  .song-card-body { padding: 2rem; }
+
+  .lyrics-text {
+    font-family: 'Heebo', 'Rubik', sans-serif;
+    font-size: 1.15rem; line-height: 2;
+    color: var(--text-primary); white-space: pre-wrap; text-align: right;
+  }
+
+  .song-card-footer {
+    border-top: 1px solid var(--border-light);
+    padding: 1rem 2rem;
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--bg-secondary);
+  }
+
+  .page-indicator { font-size: 0.85rem; color: var(--text-muted); }
+  .nav-buttons { display: flex; gap: 0.5rem; }
+
+  .nav-btn {
+    padding: 0.4rem 0.8rem;
+    font-family: 'Rubik', 'Heebo', sans-serif; font-size: 0.9rem;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-card); color: var(--text-secondary);
+    cursor: pointer; transition: all 0.3s;
+  }
+
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+  .empty-state h3 { font-size: 1.3rem; margin-bottom: 0.5rem; color: var(--text-secondary); }
+
+  mark { background: var(--gold-light); color: var(--text-primary); padding: 0.1em 0.2em; border-radius: 3px; }
+
+  .letter-index { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 1rem; justify-content: center; }
+
+  .letter-btn {
+    width: 2.2rem; height: 2.2rem;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Rubik', 'Heebo', sans-serif; font-size: 1rem; font-weight: 700;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-card); color: var(--text-secondary);
+    cursor: pointer; transition: all 0.3s;
+  }
+
+  .letter-btn:hover, .letter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .letter-btn.disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Edit mode styles */
+  .edit-btn {
+    padding: 0.4rem 1rem;
+    font-family: 'Rubik', 'Heebo', sans-serif; font-size: 0.85rem;
+    background: var(--gold); color: #3d2b1f;
+    border: none; border-radius: 6px;
+    cursor: pointer; transition: all 0.3s; font-weight: 500;
+  }
+
+  .edit-btn:hover { background: var(--accent-light); }
+
+  .edit-form { display: none; }
+  .edit-form.active { display: block; }
+
+  .edit-field { margin-bottom: 1rem; }
+
+  .edit-field label {
+    display: block; font-size: 0.85rem; font-weight: 500;
+    color: var(--text-secondary); margin-bottom: 0.3rem;
+  }
+
+  .edit-field input, .edit-field textarea {
+    width: 100%; padding: 0.6rem 0.8rem;
+    font-family: 'Heebo', 'Rubik', sans-serif; font-size: 1rem;
+    border: 2px solid var(--border); border-radius: 8px;
+    background: var(--bg-card); color: var(--text-primary);
+    outline: none; transition: border-color 0.3s;
+  }
+
+  .edit-field input:focus, .edit-field textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .edit-field textarea {
+    min-height: 300px; line-height: 1.9;
+    resize: vertical; white-space: pre-wrap;
+  }
+
+  .edit-actions {
+    display: flex; gap: 0.5rem; justify-content: flex-start; margin-top: 1rem;
+  }
+
+  .save-btn {
+    padding: 0.5rem 1.5rem;
+    font-family: 'Rubik', 'Heebo', sans-serif; font-size: 0.95rem;
+    background: #4a8c5c; color: #fff;
+    border: none; border-radius: 8px;
+    cursor: pointer; transition: all 0.3s; font-weight: 500;
+  }
+
+  .save-btn:hover { background: #3d7a4e; }
+  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .cancel-edit-btn {
+    padding: 0.5rem 1.5rem;
+    font-family: 'Rubik', 'Heebo', sans-serif; font-size: 0.95rem;
+    background: none; color: var(--text-secondary);
+    border: 1.5px solid var(--border); border-radius: 8px;
+    cursor: pointer; transition: all 0.3s;
+  }
+
+  .cancel-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .save-status {
+    font-size: 0.85rem; color: #4a8c5c;
+    margin-right: 0.5rem; opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .save-status.show { opacity: 1; }
+
+  /* Password modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: var(--bg-card); border-radius: 16px;
+    padding: 2rem; max-width: 350px; width: 90%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3); text-align: center;
+  }
+
+  .modal h3 {
+    font-size: 1.2rem; margin-bottom: 1rem; color: var(--text-primary);
+  }
+
+  .modal input {
+    width: 100%; padding: 0.7rem 1rem;
+    font-family: 'Rubik', sans-serif; font-size: 1.1rem;
+    border: 2px solid var(--border); border-radius: 8px;
+    text-align: center; outline: none; margin-bottom: 0.5rem;
+  }
+
+  .modal input:focus { border-color: var(--accent); }
+
+  .modal .error-msg { font-size: 0.85rem; color: #c44; margin-bottom: 0.5rem; min-height: 1.2em; }
+
+  .modal .modal-actions { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+
+  .modal .modal-btn {
+    padding: 0.5rem 1.5rem;
+    font-family: 'Rubik', sans-serif; font-size: 0.95rem;
+    border-radius: 8px; cursor: pointer; transition: all 0.3s;
+    border: none;
+  }
+
+  .modal .modal-btn.primary { background: var(--accent); color: #fff; }
+  .modal .modal-btn.primary:hover { background: #6d4830; }
+  .modal .modal-btn.secondary { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border); }
+
+  @media (max-width: 768px) {
+    .header { padding: 1.2rem 1rem; }
+    .header h1 { font-size: 1.6rem; }
+    .edit-mode-toggle { position: static; transform: none; margin-top: 0.5rem; }
+    .search-section { padding: 1rem; }
+    .main-content { padding: 1rem; }
+    .song-item { padding: 0.8rem 1rem; }
+    .song-item .song-title { font-size: 1.05rem; }
+    .song-card-header { padding: 1.3rem 1.2rem; }
+    .song-card-header h2 { font-size: 1.4rem; }
+    .song-card-body { padding: 1.2rem; }
+    .lyrics-text { font-size: 1.05rem; line-height: 1.9; }
+    .song-card-footer { padding: 0.8rem 1.2rem; flex-direction: column; gap: 0.5rem; }
+    .filter-tabs { gap: 0.3rem; }
+    .filter-tab { font-size: 0.8rem; padding: 0.3rem 0.7rem; }
+  }
+
+  @media (max-width: 400px) {
+    .header h1 { font-size: 1.3rem; }
+    .letter-btn { width: 1.8rem; height: 1.8rem; font-size: 0.85rem; }
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-light); }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-ornament">&#10045; &#10045; &#10045;</div>
+  <h1>ילקוט זמר עברי</h1>
+  <div class="subtitle">מבחר שירי ארץ ישראל</div>
+  <button class="edit-mode-toggle" id="editModeToggle" onclick="toggleEditMode()">&#9998; עריכה</button>
+</header>
+
+<section class="search-section">
+  <div class="search-container">
+    <div class="search-box">
+      <span class="search-icon">&#128269;</span>
+      <input type="text" id="searchInput" placeholder="חיפוש לפי שם שיר, מחבר או מלחין..." autocomplete="off">
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab active" data-filter="all">הכל</button>
+      <button class="filter-tab" data-filter="title">שם שיר</button>
+      <button class="filter-tab" data-filter="author">מילים</button>
+      <button class="filter-tab" data-filter="composer">לחן</button>
+    </div>
+    <div class="results-count" id="resultsCount"></div>
+  </div>
+</section>
+
+<main class="main-content">
+  <div id="loadingView" class="loading-state">
+    <div class="spinner">&#9834;</div>
+    <p>טוען שירים...</p>
+  </div>
+
+  <div id="listView" style="display:none">
+    <div class="letter-index" id="letterIndex"></div>
+    <div class="song-list" id="songList"></div>
+  </div>
+
+  <div class="song-detail" id="detailView">
+    <button class="back-btn" id="backBtn">&#8594; חזרה לרשימה</button>
+    <div class="song-card">
+      <div class="song-card-header">
+        <div class="ornament">&#10047; &#10047; &#10047;</div>
+        <h2 id="detailTitle"></h2>
+        <div class="meta-line"><span class="meta-label">מילים:</span> <span id="detailAuthor"></span></div>
+        <div class="meta-line"><span class="meta-label">לחן:</span> <span id="detailComposer"></span></div>
+        <div class="meta-line" id="translatorLine" style="display:none"><span class="meta-label">תרגום:</span> <span id="detailTranslator"></span></div>
+      </div>
+
+      <!-- Read-only view -->
+      <div class="song-card-body" id="readView">
+        <div class="lyrics-text" id="detailLyrics"></div>
+      </div>
+
+      <!-- Edit form -->
+      <div class="song-card-body edit-form" id="editView">
+        <div class="edit-field">
+          <label>שם השיר</label>
+          <input type="text" id="editTitle">
+        </div>
+        <div class="edit-field">
+          <label>מילים</label>
+          <input type="text" id="editAuthor">
+        </div>
+        <div class="edit-field">
+          <label>לחן</label>
+          <input type="text" id="editComposer">
+        </div>
+        <div class="edit-field">
+          <label>תרגום</label>
+          <input type="text" id="editTranslator" placeholder="(אופציונלי)">
+        </div>
+        <div class="edit-field">
+          <label>מילות השיר</label>
+          <textarea id="editLyrics"></textarea>
+        </div>
+        <div class="edit-actions">
+          <button class="save-btn" id="saveBtn" onclick="saveSong()">&#10003; שמירה</button>
+          <button class="cancel-edit-btn" onclick="cancelEdit()">ביטול</button>
+          <span class="save-status" id="saveStatus">&#10003; נשמר!</span>
+        </div>
+      </div>
+
+      <div class="song-card-footer">
+        <span class="page-indicator" id="detailPage"></span>
+        <div class="nav-buttons">
+          <button class="nav-btn" id="editSongBtn" style="display:none; background:var(--gold); color:#3d2b1f; border-color:var(--gold);" onclick="startEdit()">&#9998; עריכה</button>
+          <button class="nav-btn" id="prevBtn" onclick="navigateSong(-1)">&#8592; הקודם</button>
+          <button class="nav-btn" id="nextBtn" onclick="navigateSong(1)">הבא &#8594;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Password Modal -->
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal">
+    <h3>&#128274; הזינו סיסמה לעריכה</h3>
+    <input type="password" id="passwordInput" placeholder="סיסמה" onkeydown="if(event.key==='Enter')checkPassword()">
+    <div class="error-msg" id="passwordError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="checkPassword()">כניסה</button>
+      <button class="modal-btn secondary" onclick="closePasswordModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var FIREBASE_URL = 'https://shiron-74ce8-default-rtdb.europe-west1.firebasedatabase.app';
+var EDIT_PASSWORD = '1234';
+
+var SONGS_DATA = [];
+var currentFilter = 'all';
+var currentSearch = '';
+var currentSongIndex = -1;
+var filteredSongs = [];
+var editMode = false;
+var isEditing = false;
+
+var hebrewLetters = '\u05d0\u05d1\u05d2\u05d3\u05d4\u05d5\u05d6\u05d7\u05d8\u05d9\u05db\u05dc\u05de\u05e0\u05e1\u05e2\u05e4\u05e6\u05e7\u05e8\u05e9\u05ea'.split('');
+
+// Load songs from Firebase
+function loadSongs() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', FIREBASE_URL + '/songs.json');
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      if (Array.isArray(data)) {
+        SONGS_DATA = data.filter(function(s) { return s !== null; });
+      } else if (data) {
+        SONGS_DATA = Object.values(data).filter(function(s) { return s !== null; });
+      }
+      filteredSongs = SONGS_DATA.slice();
+      document.getElementById('loadingView').style.display = 'none';
+      document.getElementById('listView').style.display = 'block';
+      renderLetterIndex();
+      renderSongList();
+      updateResultsCount();
+      setupEvents();
+    } else {
+      document.getElementById('loadingView').innerHTML =
+        '<div class="icon" style="font-size:2rem;margin-bottom:1rem;">&#9888;</div>' +
+        '<p>\u05e9\u05d2\u05d9\u05d0\u05d4 \u05d1\u05d8\u05e2\u05d9\u05e0\u05ea \u05d4\u05e9\u05d9\u05e8\u05d9\u05dd</p>';
+    }
+  };
+  xhr.onerror = function() {
+    document.getElementById('loadingView').innerHTML =
+      '<div style="font-size:2rem;margin-bottom:1rem;">&#9888;</div>' +
+      '<p>\u05e9\u05d2\u05d9\u05d0\u05d4 \u05d1\u05d7\u05d9\u05d1\u05d5\u05e8 \u05dc\u05e9\u05e8\u05ea</p>';
+  };
+  xhr.send();
+}
+
+function setupEvents() {
+  document.getElementById('searchInput').addEventListener('input', function(e) {
+    currentSearch = e.target.value.trim();
+    filterSongs();
+  });
+
+  var tabs = document.querySelectorAll('.filter-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].addEventListener('click', function() {
+      var allTabs = document.querySelectorAll('.filter-tab');
+      for (var j = 0; j < allTabs.length; j++) allTabs[j].classList.remove('active');
+      this.classList.add('active');
+      currentFilter = this.getAttribute('data-filter');
+      filterSongs();
+    });
+  }
+
+  document.getElementById('backBtn').addEventListener('click', showList);
+
+  document.addEventListener('keydown', function(e) {
+    if (document.getElementById('passwordModal').classList.contains('active')) return;
+    if (isEditing) return;
+    if (document.getElementById('detailView').classList.contains('active')) {
+      if (e.key === 'Escape') showList();
+      if (e.key === 'ArrowRight') navigateSong(1);
+      if (e.key === 'ArrowLeft') navigateSong(-1);
+    }
+  });
+}
+
+function filterSongs() {
+  if (!currentSearch) {
+    filteredSongs = SONGS_DATA.slice();
+  } else {
+    var q = currentSearch;
+    filteredSongs = SONGS_DATA.filter(function(song) {
+      switch (currentFilter) {
+        case 'title': return song.title.indexOf(q) !== -1;
+        case 'author': return song.author.indexOf(q) !== -1;
+        case 'composer': return song.composer.indexOf(q) !== -1;
+        default:
+          return song.title.indexOf(q) !== -1 ||
+                 song.author.indexOf(q) !== -1 ||
+                 song.composer.indexOf(q) !== -1 ||
+                 song.lyrics.indexOf(q) !== -1;
+      }
+    });
+  }
+  renderSongList();
+  updateResultsCount();
+}
+
+function renderLetterIndex() {
+  var container = document.getElementById('letterIndex');
+  var available = {};
+  for (var i = 0; i < SONGS_DATA.length; i++) {
+    available[SONGS_DATA[i].title.charAt(0)] = true;
+  }
+  var html = '';
+  for (var i = 0; i < hebrewLetters.length; i++) {
+    var letter = hebrewLetters[i];
+    var has = available[letter];
+    html += '<button class="letter-btn' + (has ? '' : ' disabled') + '"' +
+            (has ? ' onclick="filterByLetter(\'' + letter + '\')"' : '') +
+            '>' + letter + '</button>';
+  }
+  container.innerHTML = html;
+}
+
+function filterByLetter(letter) {
+  document.getElementById('searchInput').value = '';
+  currentSearch = '';
+  var btns = document.querySelectorAll('.letter-btn');
+  var clickedBtn = null;
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i].textContent === letter) { clickedBtn = btns[i]; break; }
+  }
+  if (clickedBtn.classList.contains('active')) {
+    clickedBtn.classList.remove('active');
+    filteredSongs = SONGS_DATA.slice();
+  } else {
+    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+    clickedBtn.classList.add('active');
+    filteredSongs = SONGS_DATA.filter(function(s) { return s.title.charAt(0) === letter; });
+  }
+  renderSongList();
+  updateResultsCount();
+}
+
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function highlightText(text, query) {
+  if (!query) return escapeHtml(text);
+  var escaped = escapeHtml(text);
+  var escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return escaped.replace(new RegExp('(' + escapedQuery + ')', 'gi'), '<mark>$1</mark>');
+}
+
+function renderSongList() {
+  var container = document.getElementById('songList');
+  if (filteredSongs.length === 0) {
+    container.innerHTML =
+      '<div class="empty-state">' +
+      '<div class="icon">&#9835;</div>' +
+      '<h3>\u05dc\u05d0 \u05e0\u05de\u05e6\u05d0\u05d5 \u05e9\u05d9\u05e8\u05d9\u05dd</h3>' +
+      '<p>\u05e0\u05e1\u05d5 \u05dc\u05d7\u05e4\u05e9 \u05d1\u05de\u05d9\u05dc\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05ea</p>' +
+      '</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < filteredSongs.length; i++) {
+    var song = filteredSongs[i];
+    html +=
+      '<div class="song-item" onclick="showSong(' + i + ')">' +
+      '<div class="song-number">' + song.id + '</div>' +
+      '<div class="song-info">' +
+      '<div class="song-title">' + highlightText(song.title, currentSearch) + '</div>' +
+      '<div class="song-meta">' +
+      highlightText(song.author, currentSearch) +
+      (song.composer !== song.author ? ' \u00B7 ' + highlightText(song.composer, currentSearch) : '') +
+      '</div></div>' +
+      '<div class="song-arrow">&#10094;</div></div>';
+  }
+  container.innerHTML = html;
+}
+
+function updateResultsCount() {
+  var el = document.getElementById('resultsCount');
+  if (currentSearch || filteredSongs.length !== SONGS_DATA.length) {
+    el.textContent = filteredSongs.length + ' \u05e9\u05d9\u05e8\u05d9\u05dd \u05de\u05ea\u05d5\u05da ' + SONGS_DATA.length;
+  } else {
+    el.textContent = SONGS_DATA.length + ' \u05e9\u05d9\u05e8\u05d9\u05dd';
+  }
+}
+
+function showSong(filteredIndex) {
+  currentSongIndex = filteredIndex;
+  var song = filteredSongs[filteredIndex];
+  document.getElementById('detailTitle').textContent = song.title;
+  document.getElementById('detailAuthor').textContent = song.author;
+  document.getElementById('detailComposer').textContent = song.composer;
+  document.getElementById('detailLyrics').textContent = song.lyrics;
+  document.getElementById('detailPage').textContent = '\u05e9\u05d9\u05e8 ' + song.id + ' \u00B7 \u05e2\u05de\u05d5\u05d3 ' + song.page;
+
+  var tlLine = document.getElementById('translatorLine');
+  if (song.translator) {
+    document.getElementById('detailTranslator').textContent = song.translator;
+    tlLine.style.display = '';
+  } else {
+    tlLine.style.display = 'none';
+  }
+
+  document.getElementById('prevBtn').disabled = filteredIndex <= 0;
+  document.getElementById('nextBtn').disabled = filteredIndex >= filteredSongs.length - 1;
+
+  // Show/hide edit button based on edit mode
+  document.getElementById('editSongBtn').style.display = editMode ? '' : 'none';
+
+  // Reset to read view
+  isEditing = false;
+  document.getElementById('readView').style.display = '';
+  document.getElementById('editView').classList.remove('active');
+
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function showList() {
+  if (isEditing) {
+    if (!confirm('\u05d9\u05e9 \u05e9\u05d9\u05e0\u05d5\u05d9\u05d9\u05dd \u05e9\u05dc\u05d0 \u05e0\u05e9\u05de\u05e8\u05d5. \u05dc\u05e6\u05d0\u05ea \u05d1\u05db\u05dc \u05d6\u05d0\u05ea?')) return;
+    isEditing = false;
+  }
+  document.getElementById('readView').style.display = '';
+  document.getElementById('editView').classList.remove('active');
+  document.getElementById('listView').style.display = 'block';
+  document.getElementById('detailView').classList.remove('active');
+}
+
+function navigateSong(direction) {
+  if (isEditing) return;
+  var newIndex = currentSongIndex + direction;
+  if (newIndex >= 0 && newIndex < filteredSongs.length) {
+    showSong(newIndex);
+  }
+}
+
+// Edit mode
+function toggleEditMode() {
+  if (editMode) {
+    editMode = false;
+    document.getElementById('editModeToggle').classList.remove('active');
+    document.getElementById('editModeToggle').innerHTML = '&#9998; \u05e2\u05e8\u05d9\u05db\u05d4';
+    document.getElementById('editSongBtn').style.display = 'none';
+    if (isEditing) cancelEdit();
+  } else {
+    document.getElementById('passwordModal').classList.add('active');
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordError').textContent = '';
+    setTimeout(function() { document.getElementById('passwordInput').focus(); }, 100);
+  }
+}
+
+function checkPassword() {
+  var pw = document.getElementById('passwordInput').value;
+  if (pw === EDIT_PASSWORD) {
+    editMode = true;
+    document.getElementById('editModeToggle').classList.add('active');
+    document.getElementById('editModeToggle').innerHTML = '&#10003; \u05de\u05e6\u05d1 \u05e2\u05e8\u05d9\u05db\u05d4';
+    closePasswordModal();
+    // If a song is currently shown, show edit button
+    if (document.getElementById('detailView').classList.contains('active')) {
+      document.getElementById('editSongBtn').style.display = '';
+    }
+  } else {
+    document.getElementById('passwordError').textContent = '\u05e1\u05d9\u05e1\u05de\u05d4 \u05e9\u05d2\u05d5\u05d9\u05d4';
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+  }
+}
+
+function closePasswordModal() {
+  document.getElementById('passwordModal').classList.remove('active');
+}
+
+function startEdit() {
+  var song = filteredSongs[currentSongIndex];
+  document.getElementById('editTitle').value = song.title;
+  document.getElementById('editAuthor').value = song.author;
+  document.getElementById('editComposer').value = song.composer;
+  document.getElementById('editTranslator').value = song.translator || '';
+  document.getElementById('editLyrics').value = song.lyrics;
+
+  isEditing = true;
+  document.getElementById('readView').style.display = 'none';
+  document.getElementById('editView').classList.add('active');
+  document.getElementById('saveStatus').classList.remove('show');
+}
+
+function cancelEdit() {
+  isEditing = false;
+  document.getElementById('readView').style.display = '';
+  document.getElementById('editView').classList.remove('active');
+}
+
+function saveSong() {
+  var song = filteredSongs[currentSongIndex];
+  var songIndex = SONGS_DATA.indexOf(song);
+
+  var newTitle = document.getElementById('editTitle').value.trim();
+  var newAuthor = document.getElementById('editAuthor').value.trim();
+  var newComposer = document.getElementById('editComposer').value.trim();
+  var newTranslator = document.getElementById('editTranslator').value.trim();
+  var newLyrics = document.getElementById('editLyrics').value;
+
+  if (!newTitle) { alert('\u05e9\u05dd \u05d4\u05e9\u05d9\u05e8 \u05dc\u05d0 \u05d9\u05db\u05d5\u05dc \u05dc\u05d4\u05d9\u05d5\u05ea \u05e8\u05d9\u05e7'); return; }
+
+  // Update local data
+  song.title = newTitle;
+  song.author = newAuthor;
+  song.composer = newComposer;
+  song.translator = newTranslator;
+  song.lyrics = newLyrics;
+
+  // Disable save button
+  document.getElementById('saveBtn').disabled = true;
+  document.getElementById('saveBtn').textContent = '\u05e9\u05d5\u05de\u05e8...';
+
+  // Save to Firebase
+  var xhr = new XMLHttpRequest();
+  xhr.open('PUT', FIREBASE_URL + '/songs/' + songIndex + '.json');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    document.getElementById('saveBtn').disabled = false;
+    document.getElementById('saveBtn').innerHTML = '&#10003; \u05e9\u05de\u05d9\u05e8\u05d4';
+
+    if (xhr.status === 200) {
+      // Update display
+      document.getElementById('detailTitle').textContent = song.title;
+      document.getElementById('detailAuthor').textContent = song.author;
+      document.getElementById('detailComposer').textContent = song.composer;
+      document.getElementById('detailLyrics').textContent = song.lyrics;
+
+      var tlLine = document.getElementById('translatorLine');
+      if (song.translator) {
+        document.getElementById('detailTranslator').textContent = song.translator;
+        tlLine.style.display = '';
+      } else {
+        tlLine.style.display = 'none';
+      }
+
+      // Show saved status
+      var status = document.getElementById('saveStatus');
+      status.classList.add('show');
+      setTimeout(function() { status.classList.remove('show'); }, 2000);
+
+      // Exit edit mode
+      isEditing = false;
+      document.getElementById('readView').style.display = '';
+      document.getElementById('editView').classList.remove('active');
+    } else {
+      alert('\u05e9\u05d2\u05d9\u05d0\u05d4 \u05d1\u05e9\u05de\u05d9\u05e8\u05d4. \u05e0\u05e1\u05d5 \u05e9\u05d5\u05d1.');
+    }
+  };
+  xhr.onerror = function() {
+    document.getElementById('saveBtn').disabled = false;
+    document.getElementById('saveBtn').innerHTML = '&#10003; \u05e9\u05de\u05d9\u05e8\u05d4';
+    alert('\u05e9\u05d2\u05d9\u05d0\u05ea \u05ea\u05e7\u05e9\u05d5\u05e8\u05ea. \u05d1\u05d3\u05e7\u05d5 \u05d0\u05ea \u05d4\u05d7\u05d9\u05d1\u05d5\u05e8 \u05dc\u05d0\u05d9\u05e0\u05d8\u05e8\u05e0\u05d8.');
+  };
+  xhr.send(JSON.stringify(song));
+}
+
+// Start the app
+loadSongs();
+</script>
+</body>
+</html>
