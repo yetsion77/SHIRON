@@ -262,6 +262,57 @@
     resize: vertical; white-space: pre-wrap;
   }
 
+  .edit-field textarea.chords-textarea {
+    direction: ltr; text-align: left;
+    font-family: 'Courier New', monospace; font-size: 0.95rem;
+    line-height: 1.8; min-height: 350px;
+  }
+
+  /* Chord display */
+  .chords-toggle {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.4rem 1rem; margin-top: 0.6rem;
+    font-family: 'Rubik', sans-serif; font-size: 0.85rem;
+    background: rgba(200,164,92,0.2); color: var(--gold-light);
+    border: 1px solid rgba(200,164,92,0.4); border-radius: 20px;
+    cursor: pointer; transition: all 0.3s;
+  }
+
+  .chords-toggle:hover { background: rgba(200,164,92,0.35); }
+  .chords-toggle.active { background: var(--gold); color: #3d2b1f; border-color: var(--gold); }
+
+  .chords-lyrics-view { direction: ltr; text-align: left; }
+
+  .chord-pair { margin-bottom: 0.3rem; }
+
+  .chord-line {
+    font-family: 'Courier New', monospace; font-size: 1rem;
+    color: var(--gold); font-weight: 700;
+    line-height: 1.4; white-space: pre;
+    direction: ltr; text-align: left;
+    letter-spacing: 0.02em;
+  }
+
+  .lyrics-line-under-chord {
+    font-family: 'Heebo', 'Rubik', sans-serif; font-size: 1.15rem;
+    color: var(--text-primary); line-height: 1.6;
+    direction: rtl; text-align: right;
+    white-space: pre-wrap;
+  }
+
+  .lyrics-line-standalone {
+    font-family: 'Heebo', 'Rubik', sans-serif; font-size: 1.15rem;
+    color: var(--text-primary); line-height: 2;
+    direction: rtl; text-align: right;
+    white-space: pre-wrap;
+  }
+
+  .chord-badge {
+    display: inline-block; font-size: 0.7rem;
+    color: var(--gold); margin-right: 0.3rem;
+    vertical-align: middle;
+  }
+
   .edit-actions {
     display: flex; gap: 0.5rem; justify-content: flex-start; margin-top: 1rem;
   }
@@ -411,6 +462,7 @@
         <div class="meta-line"><span class="meta-label">מילים:</span> <span id="detailAuthor"></span></div>
         <div class="meta-line"><span class="meta-label">לחן:</span> <span id="detailComposer"></span></div>
         <div class="meta-line" id="translatorLine" style="display:none"><span class="meta-label">תרגום:</span> <span id="detailTranslator"></span></div>
+        <button class="chords-toggle" id="chordsToggle" style="display:none" onclick="toggleChords()">&#9835; אקורדים</button>
       </div>
 
       <!-- Read-only view -->
@@ -439,6 +491,10 @@
         <div class="edit-field">
           <label>מילות השיר</label>
           <textarea id="editLyrics"></textarea>
+        </div>
+        <div class="edit-field">
+          <label>אקורדים (פורמט Tab4U - שורת אקורדים מעל שורת מילים)</label>
+          <textarea id="editChordsLyrics" class="chords-textarea" placeholder="Am        G         C&#10;שורת מילים ראשונה&#10;Dm        Em        Am&#10;שורת מילים שנייה"></textarea>
         </div>
         <div class="edit-actions">
           <button class="save-btn" id="saveBtn" onclick="saveSong()">&#10003; שמירה</button>
@@ -483,6 +539,7 @@ var currentSongIndex = -1;
 var filteredSongs = [];
 var editMode = false;
 var isEditing = false;
+var showingChords = false;
 
 var hebrewLetters = '\u05d0\u05d1\u05d2\u05d3\u05d4\u05d5\u05d6\u05d7\u05d8\u05d9\u05db\u05dc\u05de\u05e0\u05e1\u05e2\u05e4\u05e6\u05e7\u05e8\u05e9\u05ea'.split('');
 
@@ -639,7 +696,7 @@ function renderSongList() {
       '<div class="song-item" onclick="showSong(' + i + ')">' +
       '<div class="song-number">' + song.id + '</div>' +
       '<div class="song-info">' +
-      '<div class="song-title">' + highlightText(song.title, currentSearch) + '</div>' +
+      '<div class="song-title">' + (song.chordsLyrics ? '<span class="chord-badge">&#9835;</span>' : '') + highlightText(song.title, currentSearch) + '</div>' +
       '<div class="song-meta">' +
       highlightText(song.author, currentSearch) +
       (song.composer !== song.author ? ' \u00B7 ' + highlightText(song.composer, currentSearch) : '') +
@@ -673,6 +730,16 @@ function showSong(filteredIndex) {
     tlLine.style.display = '';
   } else {
     tlLine.style.display = 'none';
+  }
+
+  // Chords toggle
+  showingChords = false;
+  var chordsToggle = document.getElementById('chordsToggle');
+  chordsToggle.classList.remove('active');
+  if (song.chordsLyrics) {
+    chordsToggle.style.display = '';
+  } else {
+    chordsToggle.style.display = 'none';
   }
 
   document.getElementById('prevBtn').disabled = filteredIndex <= 0;
@@ -755,6 +822,7 @@ function startEdit() {
   document.getElementById('editComposer').value = song.composer;
   document.getElementById('editTranslator').value = song.translator || '';
   document.getElementById('editLyrics').value = song.lyrics;
+  document.getElementById('editChordsLyrics').value = song.chordsLyrics || '';
 
   isEditing = true;
   document.getElementById('readView').style.display = 'none';
@@ -777,6 +845,7 @@ function saveSong() {
   var newComposer = document.getElementById('editComposer').value.trim();
   var newTranslator = document.getElementById('editTranslator').value.trim();
   var newLyrics = document.getElementById('editLyrics').value;
+  var newChordsLyrics = document.getElementById('editChordsLyrics').value;
 
   if (!newTitle) { alert('\u05e9\u05dd \u05d4\u05e9\u05d9\u05e8 \u05dc\u05d0 \u05d9\u05db\u05d5\u05dc \u05dc\u05d4\u05d9\u05d5\u05ea \u05e8\u05d9\u05e7'); return; }
 
@@ -786,6 +855,7 @@ function saveSong() {
   song.composer = newComposer;
   song.translator = newTranslator;
   song.lyrics = newLyrics;
+  song.chordsLyrics = newChordsLyrics || '';
 
   // Disable save button
   document.getElementById('saveBtn').disabled = true;
@@ -814,6 +884,12 @@ function saveSong() {
         tlLine.style.display = 'none';
       }
 
+      // Update chords toggle
+      showingChords = false;
+      var chordsToggle = document.getElementById('chordsToggle');
+      chordsToggle.classList.remove('active');
+      chordsToggle.style.display = song.chordsLyrics ? '' : 'none';
+
       // Show saved status
       var status = document.getElementById('saveStatus');
       status.classList.add('show');
@@ -833,6 +909,63 @@ function saveSong() {
     alert('\u05e9\u05d2\u05d9\u05d0\u05ea \u05ea\u05e7\u05e9\u05d5\u05e8\u05ea. \u05d1\u05d3\u05e7\u05d5 \u05d0\u05ea \u05d4\u05d7\u05d9\u05d1\u05d5\u05e8 \u05dc\u05d0\u05d9\u05e0\u05d8\u05e8\u05e0\u05d8.');
   };
   xhr.send(JSON.stringify(song));
+}
+
+// Chord functions
+function isChordLine(line) {
+  if (!line || !line.trim()) return false;
+  // A chord line contains only chord symbols separated by spaces
+  var tokens = line.trim().split(/\s+/);
+  if (tokens.length === 0) return false;
+  var chordPattern = /^[A-G][#b]?(m|min|maj|dim|aug|sus[24]?|add[0-9]*)?[0-9]*(\/[A-G][#b]?)?$/;
+  var chordCount = 0;
+  for (var i = 0; i < tokens.length; i++) {
+    if (chordPattern.test(tokens[i])) chordCount++;
+  }
+  return chordCount >= tokens.length * 0.7 && chordCount >= 1;
+}
+
+function renderChordsLyrics(chordsLyricsText) {
+  var lines = chordsLyricsText.split('\n');
+  var html = '<div class="chords-lyrics-view">';
+  var i = 0;
+  while (i < lines.length) {
+    if (isChordLine(lines[i])) {
+      html += '<div class="chord-pair">';
+      html += '<div class="chord-line">' + escapeHtml(lines[i]) + '</div>';
+      if (i + 1 < lines.length && !isChordLine(lines[i + 1])) {
+        html += '<div class="lyrics-line-under-chord">' + escapeHtml(lines[i + 1]) + '</div>';
+        i += 2;
+      } else {
+        html += '</div>';
+        i++;
+      }
+      if (html.slice(-6) !== '</div>') html += '</div>';
+    } else if (lines[i].trim() === '') {
+      html += '<div style="height:0.8rem"></div>';
+      i++;
+    } else {
+      html += '<div class="lyrics-line-standalone">' + escapeHtml(lines[i]) + '</div>';
+      i++;
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function toggleChords() {
+  var song = filteredSongs[currentSongIndex];
+  if (!song || !song.chordsLyrics) return;
+  showingChords = !showingChords;
+  var toggle = document.getElementById('chordsToggle');
+  var lyricsEl = document.getElementById('detailLyrics');
+  if (showingChords) {
+    toggle.classList.add('active');
+    lyricsEl.innerHTML = renderChordsLyrics(song.chordsLyrics);
+  } else {
+    toggle.classList.remove('active');
+    lyricsEl.textContent = song.lyrics;
+  }
 }
 
 // Start the app
