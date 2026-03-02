@@ -281,6 +281,30 @@
   .chords-toggle:hover { background: rgba(200,164,92,0.35); }
   .chords-toggle.active { background: var(--gold); color: #3d2b1f; border-color: var(--gold); }
 
+  .transpose-control {
+    display: none; align-items: center; gap: 0.4rem;
+    justify-content: center; margin-top: 0.5rem;
+  }
+
+  .transpose-control.active { display: flex; }
+
+  .transpose-btn {
+    width: 2rem; height: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 700;
+    background: rgba(200,164,92,0.2); color: var(--gold-light);
+    border: 1px solid rgba(200,164,92,0.4); border-radius: 50%;
+    cursor: pointer; transition: all 0.3s;
+    font-family: 'Rubik', sans-serif;
+  }
+
+  .transpose-btn:hover { background: rgba(200,164,92,0.4); }
+
+  .transpose-value {
+    font-family: 'Rubik', sans-serif; font-size: 0.85rem;
+    color: var(--gold-light); min-width: 2.5rem; text-align: center;
+  }
+
   .chords-lyrics-view {
     direction: rtl; text-align: right;
     overflow-x: auto;
@@ -471,6 +495,11 @@
         <div class="meta-line"><span class="meta-label">לחן:</span> <span id="detailComposer"></span></div>
         <div class="meta-line" id="translatorLine" style="display:none"><span class="meta-label">תרגום:</span> <span id="detailTranslator"></span></div>
         <button class="chords-toggle" id="chordsToggle" style="display:none" onclick="toggleChords()">&#9835; אקורדים</button>
+        <div class="transpose-control" id="transposeControl">
+          <button class="transpose-btn" onclick="transpose(-1)">&#8722;</button>
+          <span class="transpose-value" id="transposeValue">0</span>
+          <button class="transpose-btn" onclick="transpose(1)">+</button>
+        </div>
       </div>
 
       <!-- Read-only view -->
@@ -548,6 +577,7 @@ var filteredSongs = [];
 var editMode = false;
 var isEditing = false;
 var showingChords = false;
+var currentTranspose = 0;
 
 var hebrewLetters = '\u05d0\u05d1\u05d2\u05d3\u05d4\u05d5\u05d6\u05d7\u05d8\u05d9\u05db\u05dc\u05de\u05e0\u05e1\u05e2\u05e4\u05e6\u05e7\u05e8\u05e9\u05ea'.split('');
 
@@ -740,10 +770,14 @@ function showSong(filteredIndex) {
     tlLine.style.display = 'none';
   }
 
-  // Chords toggle
+  // Chords toggle & transpose reset
   showingChords = false;
+  currentTranspose = 0;
+  document.getElementById('transposeValue').textContent = '0';
   var chordsToggle = document.getElementById('chordsToggle');
+  var transposeCtrl = document.getElementById('transposeControl');
   chordsToggle.classList.remove('active');
+  transposeCtrl.classList.remove('active');
   if (song.chordsLyrics) {
     chordsToggle.style.display = '';
   } else {
@@ -967,13 +1001,88 @@ function toggleChords() {
   showingChords = !showingChords;
   var toggle = document.getElementById('chordsToggle');
   var lyricsEl = document.getElementById('detailLyrics');
+  var transposeCtrl = document.getElementById('transposeControl');
   if (showingChords) {
     toggle.classList.add('active');
-    lyricsEl.innerHTML = renderChordsLyrics(song.chordsLyrics);
+    transposeCtrl.classList.add('active');
+    var transposed = transposeText(song.chordsLyrics, currentTranspose);
+    lyricsEl.innerHTML = renderChordsLyrics(transposed);
   } else {
     toggle.classList.remove('active');
+    transposeCtrl.classList.remove('active');
     lyricsEl.textContent = song.lyrics;
   }
+}
+
+// Transpose functions
+var NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var NOTES_FLAT  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+
+function transposeChord(chord, semitones) {
+  if (!chord || semitones === 0) return chord;
+  // Match: root note (with optional # or b), then the rest (m, 7, sus4, /bass, etc.)
+  var match = chord.match(/^([A-G][#b]?)(.*?)(\/?([A-G][#b]?)(.*))?$/);
+  if (!match) return chord;
+
+  var root = match[1];
+  var suffix = match[2];
+  var hasSlash = match[3] && match[4];
+  var bassRoot = hasSlash ? match[4] : '';
+  var bassSuffix = hasSlash ? (match[5] || '') : '';
+
+  function shiftNote(note, steps) {
+    var useFlats = note.indexOf('b') !== -1;
+    var noteList = useFlats ? NOTES_FLAT : NOTES_SHARP;
+    var idx = -1;
+    for (var i = 0; i < NOTES_SHARP.length; i++) {
+      if (NOTES_SHARP[i] === note || NOTES_FLAT[i] === note) { idx = i; break; }
+    }
+    if (idx === -1) return note;
+    var newIdx = ((idx + steps) % 12 + 12) % 12;
+    return noteList[newIdx];
+  }
+
+  var newRoot = shiftNote(root, semitones);
+  var result = newRoot + suffix;
+  if (hasSlash) {
+    var newBass = shiftNote(bassRoot, semitones);
+    result += '/' + newBass + bassSuffix;
+  }
+  return result;
+}
+
+function transposeLine(line, semitones) {
+  if (!isChordLine(line)) return line;
+  // Replace each chord token while preserving spacing
+  return line.replace(/[A-G][#b]?(?:m|min|maj|dim|aug|sus[24]?|add[0-9]*)?[0-9]*(?:\/[A-G][#b]?)?/g, function(match) {
+    return transposeChord(match, semitones);
+  });
+}
+
+function transposeText(text, semitones) {
+  if (semitones === 0) return text;
+  var lines = text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    if (isChordLine(lines[i])) {
+      lines[i] = transposeLine(lines[i], semitones);
+    }
+  }
+  return lines.join('\n');
+}
+
+function transpose(direction) {
+  currentTranspose = ((currentTranspose + direction) % 12 + 12) % 12;
+  var display = currentTranspose === 0 ? '0' : (currentTranspose <= 6 ? '+' + currentTranspose : '' + (currentTranspose - 12));
+  document.getElementById('transposeValue').textContent = display;
+  refreshChordsView();
+}
+
+function refreshChordsView() {
+  if (!showingChords) return;
+  var song = filteredSongs[currentSongIndex];
+  if (!song || !song.chordsLyrics) return;
+  var transposed = transposeText(song.chordsLyrics, currentTranspose);
+  document.getElementById('detailLyrics').innerHTML = renderChordsLyrics(transposed);
 }
 
 // Start the app
